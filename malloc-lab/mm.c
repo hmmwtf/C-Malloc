@@ -210,7 +210,7 @@ static void *find_fit(size_t asize) {
 
 // Next - fit
 /* 적합한 블록 탐색 (Next-fit) */
-/*
+
 static void *find_fit(size_t asize) {
     void *ptr;
     ptr = find_nextp;   // 현재 탐색 시작 위치를 저장
@@ -235,9 +235,10 @@ static void *find_fit(size_t asize) {
     }
     return NULL;    // 적합한 블록을 찾지 못한 경우
 }
-*/
+
 
 // Best - fit
+/*
 static void *find_fit(size_t asize) {
     void *bp = heap_listp;
     void *best_bp = NULL;
@@ -257,6 +258,7 @@ static void *find_fit(size_t asize) {
 
     return best_bp;                       // NULL 가능
 }
+*/
 
 static void place(void *bp, size_t asize) {
     size_t csize = GET_SIZE(HDRP(bp));
@@ -399,4 +401,3 @@ static void remove_node(void *bp)
     //  병합 끝난 뒤에, 업데이트
     find_nextp = bp;    
 }
-
