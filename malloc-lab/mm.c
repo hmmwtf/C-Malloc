@@ -236,7 +236,6 @@ static void *find_fit(size_t asize) {
     return NULL;    // 적합한 블록을 찾지 못한 경우
 }
 
-
 // Best - fit
 /*
 static void *find_fit(size_t asize) {
@@ -325,6 +324,7 @@ void *mm_realloc(void *ptr, size_t size)
 }
 */
 
+/*
 void *mm_realloc(void *ptr, size_t size)
 {
     if (ptr == NULL) {
@@ -380,6 +380,7 @@ void *mm_realloc(void *ptr, size_t size)
     mm_free(ptr);
     return newptr;
 }
+*/
 
 static void remove_node(void *bp)
 {
@@ -400,4 +401,66 @@ static void remove_node(void *bp)
     
     //  병합 끝난 뒤에, 업데이트
     find_nextp = bp;    
+}
+
+
+void *mm_realloc(void *ptr, size_t size)
+{
+    if (ptr == NULL) {
+        // realloc(NULL, size)는 malloc(size)와 같음
+        return mm_malloc(size);
+    }
+    if (size == 0) {
+        // realloc(ptr, 0)은 free(ptr) 후 NULL 반환
+        mm_free(ptr);
+        return NULL;
+    }
+    size_t oldsize = GET_SIZE(HDRP(ptr)); // 현재 블록 전체 크기 (헤더/푸터 포함)
+    size_t asize;
+    // 요청 크기를 블록 최소 단위(16바이트)로 맞추기
+    if (size <= DSIZE) {
+        asize = 2 * DSIZE;
+    } else {
+        asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE);
+    }
+    // [1] 새 요청 크기가 기존 블록보다 작거나 같으면 그냥 반환
+    if (asize <= oldsize) {
+        return ptr;
+    }
+    // [2] 다음 블록이 free고 합쳐서 충분하면 합치기
+    void *next_bp = NEXT_BLKP(ptr);
+    if (!GET_ALLOC(HDRP(next_bp)) && GET_SIZE(HDRP(next_bp)) > 0) {
+        //  1. coalesce 하기 전에, 원래 데이터 안전하게 복사!
+        size_t payload_old = (oldsize >= OVERHEAD) ? oldsize - OVERHEAD : 0;
+        char *temp = malloc(payload_old); //  스택 오버플로 방지
+        if (temp == NULL) {
+            return NULL; // malloc 실패 시 NULL 반환
+        }
+        memcpy(temp, ptr, payload_old);
+        //  2. coalesce
+        void *new_bp = coalesce(ptr);
+        size_t newsize = GET_SIZE(HDRP(new_bp));
+        if (newsize >= asize) {
+            PUT(HDRP(new_bp), PACK(newsize, 1));  // 새 블록 헤더 갱신
+            PUT(FTRP(new_bp), PACK(newsize, 1));  // 새 블록 푸터 갱신
+            //  3. coalesce 끝난 후, 새 블록에 복사!
+            if (ptr != new_bp) {
+                memcpy(new_bp, temp, payload_old);
+            }
+            free(temp); //  임시 메모리 해제
+            return new_bp;
+        }
+        free(temp); //  coalesce로 확장해도 실패했으면 메모리 해제
+    }
+    // [3] 둘 다 안 되면 새로 malloc → 데이터 복사 → old free
+    void *newptr = mm_malloc(size);
+    if (newptr == NULL) {
+        return NULL;
+    }
+    size_t payload_old = (oldsize >= OVERHEAD) ? oldsize - OVERHEAD : 0;
+    size_t payload_new = (GET_SIZE(HDRP(newptr)) >= OVERHEAD) ? GET_SIZE(HDRP(newptr)) - OVERHEAD : 0;
+    size_t copySize = (payload_old < payload_new) ? payload_old : payload_new;
+    memcpy(newptr, ptr, copySize);  // 데이터 복사
+    mm_free(ptr);  // 기존 블록 해제
+    return newptr;
 }

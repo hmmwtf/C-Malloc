@@ -33,6 +33,8 @@
 #define NEXT_BLKP(bp)   ((char *)(bp) + GET_SIZE(((char *)(bp) - WSIZE)))
 #define PREV_BLKP(bp)   ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE)))
 
+#define OVERHEAD (2 * WSIZE)   // 헤더(4) + 푸터(4) = 8바이트
+
 /* 인터페이스: 힙 초기화, 할당, 해제, 재할당 */
 extern int  mm_init(void);
 extern void *mm_malloc(size_t size);
